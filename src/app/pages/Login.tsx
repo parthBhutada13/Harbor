@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
 import { Eye, EyeOff, Anchor } from "lucide-react";
 import { toast } from "sonner";
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 type Mode = "login" | "signup";
 
@@ -66,7 +67,7 @@ export default function Login() {
       const body: Record<string, string> = { email: form.email, password: form.password };
       if (mode === "signup") body.username = form.username;
 
-      const res = await fetch(endpoint, {
+      const res = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

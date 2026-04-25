@@ -97,9 +97,13 @@ function getToken() {
   return localStorage.getItem("harbor_token") || "";
 }
 
+// In production (Vercel), VITE_API_URL = https://harbor-api.onrender.com
+// In local dev, it's empty and Vite proxy handles /api calls
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
 async function apiFetch(path: string, options: RequestInit = {}) {
   const token = getToken();
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
