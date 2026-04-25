@@ -89,8 +89,8 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅  MongoDB Connected:", mongoose.connection.host);
-    app.listen(PORT, () =>
-      console.log(`🚀  Server running on http://localhost:${PORT} [${process.env.NODE_ENV}]`)
+    app.listen(PORT, "0.0.0.0", () =>
+      console.log(`Server running on http://localhost:${PORT} [${process.env.NODE_ENV}]`)
     );
   })
   .catch((err) => {
