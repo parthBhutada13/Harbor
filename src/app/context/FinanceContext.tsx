@@ -151,6 +151,7 @@ interface FinanceContextType {
   getBudgetAlerts: () => { category: Category; spent: number; limit: number }[];
   formatCurrency: (amount: number) => string;
   formatDate: (dateStr: string) => string;
+  addFundsToGoal: (goal: SavingsGoal, amount: number) => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -174,20 +175,18 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  // ── Bootstrap: load everything from API on mount ────────────────────────
+  // ── Bootstrap: TWO-PHASE load for fast UI ────────────────────────────────
+  // Phase 1: Load user profile + settings immediately (fast)
+  // Phase 2: Load data in background (transactions, budgets, goals)
   useEffect(() => {
     const token = getToken();
     if (!token) { setIsLoading(false); return; }
 
     async function bootstrap() {
       try {
-        const [meRes, txRes, budRes, goalRes] = await Promise.all([
-          apiFetch("/api/auth/me"),
-          apiFetch("/api/transactions"),
-          apiFetch("/api/budgets"),
-          apiFetch("/api/goals"),
-        ]);
-
+        // ── PHASE 1: Load user profile + settings (FAST) ──────────────────
+        // This gives us accent color, currency, username immediately
+        const meRes = await apiFetch("/api/auth/me");
         if (meRes.ok) {
           const me = await meRes.json();
           setUsername(me.username);
@@ -196,8 +195,18 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
             const s = { ...DEFAULT_SETTINGS, ...me.settings };
             s.accentColor = migrateAccent(s.accentColor);
             setSettings(s);
+            // Cache settings to localStorage so we can restore on next login
+            localStorage.setItem("harbor_user_settings", JSON.stringify(s));
           }
         }
+
+        // ── PHASE 2: Load data in parallel (can take 1-2 sec, UI is ready) ──
+        const [txRes, budRes, goalRes] = await Promise.all([
+          apiFetch("/api/transactions"),
+          apiFetch("/api/budgets"),
+          apiFetch("/api/goals"),
+        ]);
+
         if (txRes.ok)   setTransactions(await txRes.json());
         if (budRes.ok)  setBudgets(await budRes.json());
         if (goalRes.ok) setGoals(await goalRes.json());
@@ -205,6 +214,17 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         console.error("Bootstrap error:", err);
       } finally {
         setIsLoading(false);
+      }
+    }
+
+    // Try to restore cached settings immediately (fallback for next login)
+    const cached = localStorage.getItem("harbor_user_settings");
+    if (cached) {
+      try {
+        const s = JSON.parse(cached);
+        setSettings(s); // Apply cached settings immediately, may be updated by Phase 1
+      } catch (e) {
+        console.warn("Failed to parse cached settings");
       }
     }
 
@@ -301,6 +321,36 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     } catch { toast.error("Network error"); }
   };
 
+  const addFundsToGoal = async (goal: SavingsGoal, amount: number) => {
+    try {
+      // 1. Update the goal current amount
+      const updatedGoal = { ...goal, current: Math.min(goal.current + amount, goal.target) };
+      const goalRes = await apiFetch(`/api/goals/${goal.id}`, { method: "PUT", body: JSON.stringify(updatedGoal) });
+      const goalData = await goalRes.json();
+      if (!goalRes.ok) { toast.error(goalData.error || "Failed to update goal"); return; }
+
+      // 2. Add an expense transaction
+      const transaction: Omit<Transaction, "id"> = {
+        type: "expense",
+        amount: amount,
+        category: "Other",
+        description: `Contributed to goal: ${goal.name}`,
+        date: new Date().toISOString().split("T")[0],
+      };
+      const txRes = await apiFetch("/api/transactions", { method: "POST", body: JSON.stringify(transaction) });
+      const txData = await txRes.json();
+      if (!txRes.ok) { toast.error(txData.error || "Failed to record transaction"); return; }
+
+      // 3. Update state
+      setGoals((prev) => prev.map((x) => (x.id === goal.id ? goalData : x)));
+      setTransactions((prev) => [txData, ...prev]);
+
+      toast.success(`${formatCurrency(amount)} added to "${goal.name}"`);
+    } catch {
+      toast.error("Network error");
+    }
+  };
+
   // ── Settings ─────────────────────────────────────────────────────────────
   const updateSettings = async (s: Partial<AppSettings>) => {
     const merged: AppSettings = {
@@ -310,6 +360,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       notifications: { ...settings.notifications, ...(s.notifications || {}) },
     };
     setSettings(merged); // optimistic
+    localStorage.setItem("harbor_user_settings", JSON.stringify(merged)); // cache for next login
     try {
       const res = await apiFetch("/api/auth/settings", { method: "PUT", body: JSON.stringify(merged) });
       if (!res.ok) toast.error("Failed to save settings");
@@ -431,7 +482,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       totalIncome, totalExpenses, balance,
       getExpensesByCategory, getMonthlyData, getPrediction,
       getCategorySpent, getBudgetAlerts,
-      formatCurrency, formatDate,
+      formatCurrency, formatDate, addFundsToGoal,
     }}>
       {children}
     </FinanceContext.Provider>

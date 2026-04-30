@@ -27,7 +27,7 @@ interface FormState {
 const defaultForm: FormState = { name: "", target: "", current: "0", deadline: "", icon: "Target" };
 
 export default function Goals() {
-  const { goals, addGoal, updateGoal, deleteGoal, formatCurrency, settings } = useFinance();
+  const { goals, addGoal, updateGoal, deleteGoal, formatCurrency, settings, addFundsToGoal } = useFinance();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm);
@@ -62,8 +62,7 @@ export default function Goals() {
   const handleAddFunds = (g: SavingsGoal) => {
     const amt = Number(addAmount);
     if (isNaN(amt) || amt <= 0) { toast.error("Enter a valid amount"); return; }
-    updateGoal({ ...g, current: Math.min(g.current + amt, g.target) });
-    toast.success(`${formatCurrency(amt)} added to "${g.name}"`);
+    addFundsToGoal(g, amt);
     setAddFundsId(null); setAddAmount("");
   };
 
