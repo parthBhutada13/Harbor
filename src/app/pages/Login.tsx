@@ -29,6 +29,8 @@ export default function Login() {
       <label className="block text-[12px] font-medium text-[#CBD5F1] mb-1.5">{label}</label>
       <div className="relative">
         <input
+          id={key}
+          name={key}
           type={toggle ? (show ? "text" : "password") : type}
           placeholder={placeholder}
           value={form[key]}

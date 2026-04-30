@@ -91,7 +91,7 @@ export default function Dashboard() {
       {/* Balance hero */}
       <div className="bg-primary rounded-2xl p-6">
         <p className="text-[12px] text-white/70 mb-2">Total Balance</p>
-        <p className={`text-[32px] font-bold tracking-[-0.3px] ${balance >= 0 ? "text-white" : "text-[#FFB3AE]"}`}>
+        <p className={`balance-amount text-[32px] font-bold tracking-[-0.3px] ${balance >= 0 ? "text-white" : "text-[#FFB3AE]"}`}>
           {formatCurrency(balance)}
         </p>
         <div className="flex gap-4 mt-4">
