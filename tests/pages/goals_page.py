@@ -1,6 +1,6 @@
 from selenium.webdriver.common.by import By
-from .base_page import BasePage
-from ..config import BASE_URL
+from tests.pages.base_page import BasePage
+from tests.config import BASE_URL
 
 class GoalsPage(BasePage):
     """Page object for the Goals page"""

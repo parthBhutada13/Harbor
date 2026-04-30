@@ -2,9 +2,9 @@ import pytest
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-from .pages.login_page import LoginPage
-from .pages.goals_page import GoalsPage
-from .config import TEST_EMAIL, TEST_PASSWORD, BASE_URL
+from tests.pages.login_page import LoginPage
+from tests.pages.goals_page import GoalsPage
+from tests.config import TEST_EMAIL, TEST_PASSWORD, BASE_URL
 
 @pytest.fixture
 def driver():
